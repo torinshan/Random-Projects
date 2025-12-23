@@ -12,134 +12,210 @@
       background: linear-gradient(135deg, #0f172a 0%, #1a1f35 50%, #0f172a 100%);
       color: #f1f5f9;
       min-height: 100vh;
+      overflow: hidden;
+    }
+    
+    .header-bar {
+      background: rgba(30, 41, 59, 0.95);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 16px 24px;
       display: flex;
       align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-    
-    .container {
-      max-width: 900px;
-      width: 100%;
-    }
-    
-    header {
-      text-align: center;
-      margin-bottom: 48px;
-    }
-    
-    h1 {
-      font-size: 2.5rem;
-      font-weight: 700;
-      background: linear-gradient(135deg, #22c55e, #3b82f6);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 16px;
-    }
-    
-    .subtitle {
-      color: #94a3b8;
-      font-size: 1.1rem;
-      line-height: 1.6;
-    }
-    
-    .tools-grid {
-      display: grid;
+      justify-content: space-between;
       gap: 24px;
-      margin-top: 32px;
-    }
-    
-    .tool-card {
-      background: rgba(30, 41, 59, 0.8);
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,0.1);
-      padding: 32px;
-      transition: all 0.3s ease;
-      text-decoration: none;
-      display: block;
       backdrop-filter: blur(10px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
     
-    .tool-card:hover {
-      transform: translateY(-4px);
-      border-color: #3b82f6;
-      box-shadow: 0 8px 32px rgba(59, 130, 246, 0.2);
-    }
-    
-    .tool-card h2 {
-      color: #f1f5f9;
-      font-size: 1.5rem;
-      margin-bottom: 12px;
+    .header-title {
       display: flex;
       align-items: center;
       gap: 12px;
     }
     
-    .tool-card .icon {
+    .header-title h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #22c55e, #3b82f6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .header-title .icon {
       font-size: 1.8rem;
     }
     
-    .tool-card p {
-      color: #94a3b8;
-      line-height: 1.6;
-      font-size: 1rem;
+    .tool-selector {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      max-width: 600px;
     }
     
-    .tool-card .badge {
-      display: inline-block;
-      background: linear-gradient(135deg, #f97316, #a855f7);
-      padding: 4px 12px;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      margin-top: 12px;
-      color: white;
-    }
-    
-    footer {
-      text-align: center;
-      margin-top: 48px;
-      color: #64748b;
+    .tool-selector label {
       font-size: 0.9rem;
+      font-weight: 600;
+      color: #94a3b8;
+      white-space: nowrap;
     }
     
-    @media (max-width: 600px) {
-      h1 { font-size: 2rem; }
-      .tool-card { padding: 24px; }
+    .tool-selector select {
+      flex: 1;
+      padding: 10px 16px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      color: #f1f5f9;
+      font-size: 0.95rem;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      outline: none;
+      transition: all 0.2s;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+    }
+    
+    .tool-selector select:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+    
+    .tool-selector select:hover {
+      border-color: rgba(255,255,255,0.3);
+    }
+    
+    .tool-selector select option {
+      background: #1e293b;
+      color: #f1f5f9;
+      padding: 8px;
+    }
+    
+    .iframe-container {
+      width: 100%;
+      height: calc(100vh - 69px);
+      border: none;
+      display: block;
+    }
+    
+    .iframe-container iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+    
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: calc(100vh - 69px);
+      font-size: 1.2rem;
+      color: #94a3b8;
+    }
+    
+    .loading.hidden {
+      display: none;
+    }
+    
+    @media (max-width: 768px) {
+      .header-bar {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px 16px;
+        gap: 12px;
+      }
+      
+      .header-title h1 {
+        font-size: 1.2rem;
+      }
+      
+      .tool-selector {
+        max-width: 100%;
+      }
+      
+      .tool-selector label {
+        display: none;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <header>
+  <div class="header-bar">
+    <div class="header-title">
+      <span class="icon">🏈</span>
       <h1>NCAA D1 Compensation Tools</h1>
-      <p class="subtitle">Interactive dashboards for calculating and comparing NCAA Division 1 coaching compensation packages across different institutions, accounting for taxes, cost of living, and benefits.</p>
-    </header>
-    
-    <div class="tools-grid">
-      <a href="2_School_Taxes_COL_Comparssion_Tool.html" class="tool-card">
-        <h2><span class="icon">🏫</span> School Comparison Tool</h2>
-        <p>Compare two schools with comprehensive analysis including state taxes, cost of living adjustments, and net compensation calculations. Interactive map visualization of NCAA D1 institutions.</p>
-        <span class="badge">Tax & COL Analysis</span>
-      </a>
-      
-      <a href="NCAA_D1_Total_Compensation_V4B_Single_School.html" class="tool-card">
-        <h2><span class="icon">🎓</span> Single School Analysis</h2>
-        <p>Deep dive into total compensation for a single NCAA D1 institution. Analyze salary, benefits, retirement contributions, and overall compensation value for individual schools.</p>
-        <span class="badge">Single School Focus</span>
-      </a>
-      
-      <a href="2_School_Benefits_Total_Comp_Compare_Tool.html" class="tool-card">
-        <h2><span class="icon">📊</span> Benefits & Total Compensation Tool</h2>
-        <p>Comprehensive benefits comparison dashboard with interactive maps, detailed benefit breakdowns, retirement analysis, health coverage comparisons, and complete rankings across all 364 NCAA Division I institutions.</p>
-        <span class="badge">Full Dashboard - V5</span>
-      </a>
     </div>
     
-    <footer>
-      <p>NCAA Division I Compensation Analysis Tools • 364 Institutions</p>
-    </footer>
+    <div class="tool-selector">
+      <label for="toolSelect">Select Tool:</label>
+      <select id="toolSelect">
+        <option value="2_School_Taxes_COL_Comparssion_Tool.html">🏫 School Comparison Tool (Tax & COL)</option>
+        <option value="NCAA_D1_Total_Compensation_V4B_Single_School.html">🎓 Single School Analysis</option>
+        <option value="2_School_Benefits_Total_Comp_Compare_Tool.html">📊 Benefits & Total Compensation (Full Dashboard)</option>
+      </select>
+    </div>
   </div>
+  
+  <div class="loading" id="loading">Loading tool...</div>
+  
+  <div class="iframe-container" id="iframeContainer"></div>
+  
+  <script>
+    const toolSelect = document.getElementById('toolSelect');
+    const iframeContainer = document.getElementById('iframeContainer');
+    const loading = document.getElementById('loading');
+    
+    function loadTool(toolUrl) {
+      // Show loading
+      loading.classList.remove('hidden');
+      
+      // Remove existing iframe if any
+      iframeContainer.innerHTML = '';
+      
+      // Create new iframe
+      const iframe = document.createElement('iframe');
+      iframe.src = toolUrl;
+      iframe.title = 'NCAA D1 Compensation Tool';
+      
+      // Hide loading when iframe loads
+      iframe.onload = function() {
+        loading.classList.add('hidden');
+      };
+      
+      iframeContainer.appendChild(iframe);
+      
+      // Store selection in localStorage
+      try {
+        localStorage.setItem('selectedTool', toolUrl);
+      } catch (e) {
+        // localStorage might not be available
+      }
+    }
+    
+    // Handle dropdown change
+    toolSelect.addEventListener('change', function() {
+      loadTool(this.value);
+    });
+    
+    // Load previously selected tool or default to first option
+    let initialTool = toolSelect.value;
+    try {
+      const savedTool = localStorage.getItem('selectedTool');
+      if (savedTool) {
+        toolSelect.value = savedTool;
+        initialTool = savedTool;
+      }
+    } catch (e) {
+      // localStorage might not be available
+    }
+    
+    // Load initial tool
+    loadTool(initialTool);
+  </script>
 </body>
 </html>
