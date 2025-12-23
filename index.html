@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NCAA D1 Compensation Tools</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1a1f35 50%, #0f172a 100%);
+      color: #f1f5f9;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 900px;
+      width: 100%;
+    }
+    
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #22c55e, #3b82f6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 16px;
+    }
+    
+    .subtitle {
+      color: #94a3b8;
+      font-size: 1.1rem;
+      line-height: 1.6;
+    }
+    
+    .tools-grid {
+      display: grid;
+      gap: 24px;
+      margin-top: 32px;
+    }
+    
+    .tool-card {
+      background: rgba(30, 41, 59, 0.8);
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 32px;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: block;
+      backdrop-filter: blur(10px);
+    }
+    
+    .tool-card:hover {
+      transform: translateY(-4px);
+      border-color: #3b82f6;
+      box-shadow: 0 8px 32px rgba(59, 130, 246, 0.2);
+    }
+    
+    .tool-card h2 {
+      color: #f1f5f9;
+      font-size: 1.5rem;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .tool-card .icon {
+      font-size: 1.8rem;
+    }
+    
+    .tool-card p {
+      color: #94a3b8;
+      line-height: 1.6;
+      font-size: 1rem;
+    }
+    
+    .tool-card .badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #f97316, #a855f7);
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-top: 12px;
+      color: white;
+    }
+    
+    footer {
+      text-align: center;
+      margin-top: 48px;
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+    
+    @media (max-width: 600px) {
+      h1 { font-size: 2rem; }
+      .tool-card { padding: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>NCAA D1 Compensation Tools</h1>
+      <p class="subtitle">Interactive dashboards for calculating and comparing NCAA Division 1 coaching compensation packages across different institutions, accounting for taxes, cost of living, and benefits.</p>
+    </header>
+    
+    <div class="tools-grid">
+      <a href="2_School_Taxes_COL_Comparssion_Tool.html" class="tool-card">
+        <h2><span class="icon">🏫</span> School Comparison Tool</h2>
+        <p>Compare two schools with comprehensive analysis including state taxes, cost of living adjustments, and net compensation calculations. Interactive map visualization of NCAA D1 institutions.</p>
+        <span class="badge">Tax & COL Analysis</span>
+      </a>
+      
+      <a href="NCAA_D1_Total_Compensation_V4B_Single_School.html" class="tool-card">
+        <h2><span class="icon">🎓</span> Single School Analysis</h2>
+        <p>Deep dive into total compensation for a single NCAA D1 institution. Analyze salary, benefits, retirement contributions, and overall compensation value for individual schools.</p>
+        <span class="badge">Single School Focus</span>
+      </a>
+      
+      <a href="2_School_Benefits_Total_Comp_Compare_Tool.html" class="tool-card">
+        <h2><span class="icon">📊</span> Benefits & Total Compensation Tool</h2>
+        <p>Comprehensive benefits comparison dashboard with interactive maps, detailed benefit breakdowns, retirement analysis, health coverage comparisons, and complete rankings across all 364 NCAA Division I institutions.</p>
+        <span class="badge">Full Dashboard - V5</span>
+      </a>
+    </div>
+    
+    <footer>
+      <p>NCAA Division I Compensation Analysis Tools • 364 Institutions</p>
+    </footer>
+  </div>
+</body>
+</html>
