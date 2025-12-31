@@ -537,9 +537,6 @@
       font-weight: 600;
     }
   </style>
-  <script src="https://d3js.org/d3.v7.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
-  </style>
 </head>
 <body>
   <div class="container">
@@ -13701,144 +13698,176 @@
     });
 
     // ============================================
-    // MAP INITIALIZATION
+    // MAP INITIALIZATION (Simplified Canvas Version)
     // ============================================
-    let mapSvg, mapProjection, mapPath, markers;
+    let mapCanvas, mapCtx;
     
     // Stub function until map is initialized
     function updateMapHighlights() {
-      if (!markers) return;
-
-      markers.attr('r', d => {
-        if (selectedSchool1 && d.id === selectedSchool1.id) return 8;
-        if (selectedSchool2 && d.id === selectedSchool2.id) return 8;
-        return 4;
-      })
-      .attr('fill', d => {
-        if (selectedSchool1 && d.id === selectedSchool1.id) return '#3b82f6';
-        if (selectedSchool2 && d.id === selectedSchool2.id) return '#22c55e';
-        const colMin = d3.min(SCHOOLS, s => s.colIndex);
-        const colMax = d3.max(SCHOOLS, s => s.colIndex);
-        const colorScale = d3.scaleLinear()
-          .domain([colMin, colMax])
-          .range(['#22c55e', '#ef4444']);
-        return colorScale(d.colIndex);
-      })
-      .attr('stroke-width', d => {
-        if (selectedSchool1 && d.id === selectedSchool1.id) return 2;
-        if (selectedSchool2 && d.id === selectedSchool2.id) return 2;
-        return 0.5;
-      })
-      .attr('opacity', d => {
-        if (selectedSchool1 && d.id === selectedSchool1.id) return 1;
-        if (selectedSchool2 && d.id === selectedSchool2.id) return 1;
-        return 0.7;
-      });
+      if (!mapCanvas) return;
+      renderSimpleMap();
     }
 
-    async function initializeMap() {
+    function initializeMap() {
       const mapContainer = document.getElementById('map');
       const width = mapContainer.clientWidth;
       const height = mapContainer.clientHeight;
 
-      // Create SVG
-      mapSvg = d3.select('#map')
-        .append('svg')
-        .attr('width', width)
-        .attr('height', height);
+      // Create canvas
+      mapCanvas = document.createElement('canvas');
+      mapCanvas.width = width;
+      mapCanvas.height = height;
+      mapCanvas.style.width = '100%';
+      mapCanvas.style.height = '100%';
+      mapContainer.appendChild(mapCanvas);
+      mapCtx = mapCanvas.getContext('2d');
 
-      // Set up projection
-      mapProjection = d3.geoAlbersUsa()
-        .scale(width * 1.3)
-        .translate([width / 2, height / 2]);
+      // Render the map
+      renderSimpleMap();
 
-      mapPath = d3.geoPath().projection(mapProjection);
+      // Add interactivity
+      mapCanvas.addEventListener('mousemove', handleMapMouseMove);
+      mapCanvas.addEventListener('click', handleMapClick);
+      mapCanvas.addEventListener('mouseout', hideTooltip);
+    }
 
-      try {
-        // Load US map data
-        const us = await d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json');
-        const states = topojson.feature(us, us.objects.states);
+    function renderSimpleMap() {
+      if (!mapCanvas || !mapCtx) return;
 
-        // Draw states
-        mapSvg.append('g')
-          .selectAll('path')
-          .data(states.features)
-          .enter()
-          .append('path')
-          .attr('d', mapPath)
-          .attr('fill', '#1e293b')
-          .attr('stroke', '#334155')
-          .attr('stroke-width', 1);
+      const width = mapCanvas.width;
+      const height = mapCanvas.height;
 
-        // Draw school markers
-        renderMapMarkers();
-      } catch (error) {
-        console.error('Error loading map:', error);
-        mapContainer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-secondary);">Map could not be loaded. Please check your internet connection.</div>';
+      // Clear canvas
+      mapCtx.fillStyle = '#0f172a';
+      mapCtx.fillRect(0, 0, width, height);
+
+      // Calculate bounds for US coordinates
+      const latMin = 25, latMax = 50;
+      const lngMin = -125, lngMax = -65;
+
+      // Project lat/lng to canvas coordinates
+      function project(lat, lng) {
+        const x = ((lng - lngMin) / (lngMax - lngMin)) * width;
+        const y = height - ((lat - latMin) / (latMax - latMin)) * height;
+        return { x, y };
+      }
+
+      // Draw state borders (simplified)
+      mapCtx.strokeStyle = '#334155';
+      mapCtx.lineWidth = 1;
+      
+      // Draw a simple US outline rectangle
+      mapCtx.strokeRect(
+        width * 0.05, 
+        height * 0.1, 
+        width * 0.9, 
+        height * 0.8
+      );
+
+      // Color scale based on COL index
+      const colMin = Math.min(...SCHOOLS.map(s => s.colIndex));
+      const colMax = Math.max(...SCHOOLS.map(s => s.colIndex));
+      
+      function getColor(colIndex) {
+        const normalized = (colIndex - colMin) / (colMax - colMin);
+        const r = Math.floor(239 * normalized + 34 * (1 - normalized));
+        const g = Math.floor(68 * normalized + 197 * (1 - normalized));
+        const b = Math.floor(68 * normalized + 94 * (1 - normalized));
+        return `rgb(${r}, ${g}, ${b})`;
+      }
+
+      // Draw all school markers
+      SCHOOLS.forEach(school => {
+        const pos = project(school.lat, school.lng);
+        const isSchool1 = selectedSchool1 && school.id === selectedSchool1.id;
+        const isSchool2 = selectedSchool2 && school.id === selectedSchool2.id;
+
+        // Determine marker style
+        let radius = 4;
+        let color = getColor(school.colIndex);
+        let strokeColor = '#f1f5f9';
+        let strokeWidth = 0.5;
+
+        if (isSchool1) {
+          radius = 8;
+          color = '#3b82f6';
+          strokeWidth = 2;
+        } else if (isSchool2) {
+          radius = 8;
+          color = '#22c55e';
+          strokeWidth = 2;
+        }
+
+        // Draw marker
+        mapCtx.beginPath();
+        mapCtx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+        mapCtx.fillStyle = color;
+        mapCtx.fill();
+        mapCtx.strokeStyle = strokeColor;
+        mapCtx.lineWidth = strokeWidth;
+        mapCtx.stroke();
+      });
+    }
+
+    let hoveredSchool = null;
+
+    function handleMapMouseMove(event) {
+      const rect = mapCanvas.getBoundingClientRect();
+      const x = (event.clientX - rect.left) * (mapCanvas.width / rect.width);
+      const y = (event.clientY - rect.top) * (mapCanvas.height / rect.height);
+
+      // Find school near cursor
+      const latMin = 25, latMax = 50;
+      const lngMin = -125, lngMax = -65;
+      const width = mapCanvas.width;
+      const height = mapCanvas.height;
+
+      function project(lat, lng) {
+        const px = ((lng - lngMin) / (lngMax - lngMin)) * width;
+        const py = height - ((lat - latMin) / (latMax - latMin)) * height;
+        return { x: px, y: py };
+      }
+
+      let found = null;
+      let minDist = Infinity;
+
+      SCHOOLS.forEach(school => {
+        const pos = project(school.lat, school.lng);
+        const dist = Math.sqrt((pos.x - x) ** 2 + (pos.y - y) ** 2);
+        const isSelected = (selectedSchool1 && school.id === selectedSchool1.id) || 
+                          (selectedSchool2 && school.id === selectedSchool2.id);
+        const threshold = isSelected ? 10 : 6;
+        
+        if (dist < threshold && dist < minDist) {
+          minDist = dist;
+          found = school;
+        }
+      });
+
+      if (found !== hoveredSchool) {
+        hoveredSchool = found;
+        if (found) {
+          showTooltip(event, found);
+          mapCanvas.style.cursor = 'pointer';
+        } else {
+          hideTooltip();
+          mapCanvas.style.cursor = 'default';
+        }
       }
     }
 
-    function renderMapMarkers() {
-      if (!mapSvg || !mapProjection) return;
-
-      // Remove existing markers
-      if (markers) markers.remove();
-
-      // Color scale based on COL index (lower is better, so reverse the scale)
-      const colMin = d3.min(SCHOOLS, s => s.colIndex);
-      const colMax = d3.max(SCHOOLS, s => s.colIndex);
-      
-      const colorScale = d3.scaleLinear()
-        .domain([colMin, colMax])
-        .range(['#22c55e', '#ef4444']); // Green for low COL, red for high COL
-
-      // Draw all school markers
-      markers = mapSvg.append('g')
-        .selectAll('circle')
-        .data(SCHOOLS)
-        .enter()
-        .append('circle')
-        .attr('cx', d => {
-          const coords = mapProjection([d.lng, d.lat]);
-          return coords ? coords[0] : -100;
-        })
-        .attr('cy', d => {
-          const coords = mapProjection([d.lng, d.lat]);
-          return coords ? coords[1] : -100;
-        })
-        .attr('r', 4)
-        .attr('fill', d => colorScale(d.colIndex))
-        .attr('stroke', '#f1f5f9')
-        .attr('stroke-width', 0.5)
-        .attr('opacity', 0.7)
-        .style('cursor', 'pointer')
-        .on('mouseover', function(event, d) {
-          d3.select(this)
-            .attr('r', 6)
-            .attr('opacity', 1);
-          showTooltip(event, d);
-        })
-        .on('mouseout', function() {
-          d3.select(this)
-            .attr('r', 4)
-            .attr('opacity', 0.7);
-          hideTooltip();
-        })
-        .on('click', function(event, d) {
-          // If no school selected for school1, select it there
-          if (!selectedSchool1) {
-            selectSchool1(d);
-          } else if (!selectedSchool2) {
-            selectSchool2(d);
-          } else {
-            // If both selected, replace school1
-            selectSchool1(d);
-          }
-          updateMapHighlights();
-        });
-
-      // Highlight selected schools
-      updateMapHighlights();
+    function handleMapClick(event) {
+      if (hoveredSchool) {
+        // If no school selected for school1, select it there
+        if (!selectedSchool1) {
+          selectSchool1(hoveredSchool);
+        } else if (!selectedSchool2) {
+          selectSchool2(hoveredSchool);
+        } else {
+          // If both selected, replace school1
+          selectSchool1(hoveredSchool);
+        }
+      }
     }
 
     function showTooltip(event, school) {
@@ -13868,12 +13897,23 @@
     }
 
     // Initialize map when page loads
-    if (typeof d3 !== 'undefined' && typeof topojson !== 'undefined') {
+    window.addEventListener('load', function() {
       initializeMap();
-    } else {
-      console.error('D3.js or TopoJSON library not loaded');
-      document.getElementById('map').innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-secondary);">Map libraries not loaded. Please refresh the page.</div>';
-    }
+    });
+
+    // Re-render map on window resize
+    let resizeTimeout;
+    window.addEventListener('resize', function() {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(function() {
+        const mapContainer = document.getElementById('map');
+        if (mapCanvas) {
+          mapCanvas.width = mapContainer.clientWidth;
+          mapCanvas.height = mapContainer.clientHeight;
+          renderSimpleMap();
+        }
+      }, 250);
+    });
   </script>
 </body>
 </html>
