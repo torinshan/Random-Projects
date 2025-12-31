@@ -396,6 +396,146 @@
     ::-webkit-scrollbar-thumb:hover {
       background: #475569;
     }
+    
+    /* ==================== MAP SECTION ==================== */
+    .map-section {
+      background: rgba(30, 41, 59, 0.8);
+      border-radius: 16px;
+      border: 1px solid var(--border-color);
+      padding: 24px;
+      margin-bottom: 24px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .map-section h2 {
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .map-container {
+      position: relative;
+      width: 100%;
+      height: 500px;
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+    }
+    
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+    
+    #map svg {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .map-legend {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
+      min-width: 200px;
+      backdrop-filter: blur(10px);
+      z-index: 10;
+    }
+    
+    .legend-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+    }
+    
+    .legend-scale {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    
+    .legend-gradient {
+      flex: 1;
+      height: 8px;
+      background: linear-gradient(to right, var(--accent-red), var(--accent-yellow), var(--accent-green));
+      border-radius: 4px;
+    }
+    
+    .map-markers-legend {
+      border-top: 1px solid var(--border-color);
+      padding-top: 12px;
+    }
+    
+    .marker-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+    
+    .marker-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      border: 2px solid var(--text-primary);
+    }
+    
+    .marker-dot.origin {
+      background: var(--accent-orange);
+    }
+    
+    .map-tooltip {
+      position: absolute;
+      background: rgba(15, 23, 42, 0.98);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px;
+      min-width: 250px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+    }
+    
+    .map-tooltip.visible {
+      opacity: 1;
+    }
+    
+    .tooltip-title {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--accent-green);
+      margin-bottom: 8px;
+    }
+    
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      font-size: 0.85rem;
+    }
+    
+    .tooltip-row .label {
+      color: var(--text-secondary);
+    }
+    
+    .tooltip-row .value {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -405,6 +545,53 @@
       <p class="subtitle">Advanced Total Compensation Analysis with Tax, Benefits, and Cost-of-Living</p>
       <p class="subtitle"><span class="school-count">All 364 NCAA Division 1 Schools</span> • Compare two schools side-by-side</p>
     </header>
+    
+    <!-- Map Section -->
+    <div class="map-section">
+      <h2>🗺️ Interactive School Map</h2>
+      <div class="map-container">
+        <div id="map"></div>
+        
+        <!-- Map Legend -->
+        <div class="map-legend">
+          <div class="legend-title">Cost of Living Index</div>
+          <div class="legend-scale">
+            <span style="font-size: 0.7rem; color: var(--accent-green);">Lower</span>
+            <div class="legend-gradient"></div>
+            <span style="font-size: 0.7rem; color: var(--accent-red);">Higher</span>
+          </div>
+          
+          <div class="map-markers-legend">
+            <div class="legend-title" style="margin-top: 0;">Selected Schools</div>
+            <div class="marker-item">
+              <div class="marker-dot" style="background: var(--accent-blue);"></div>
+              <span>School 1</span>
+            </div>
+            <div class="marker-item">
+              <div class="marker-dot" style="background: var(--accent-green);"></div>
+              <span>School 2</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Tooltip -->
+        <div class="map-tooltip" id="mapTooltip">
+          <div class="tooltip-title" id="tooltipTitle">School Name</div>
+          <div class="tooltip-row">
+            <span class="label">Location:</span>
+            <span class="value" id="tooltipLocation">City, State</span>
+          </div>
+          <div class="tooltip-row">
+            <span class="label">Conference:</span>
+            <span class="value" id="tooltipConference">Conference</span>
+          </div>
+          <div class="tooltip-row">
+            <span class="label">COL Index:</span>
+            <span class="value" id="tooltipCOL">100</span>
+          </div>
+        </div>
+      </div>
+    </div>
     
     <div class="comparison-grid">
       <!-- School 1 Input Panel -->
@@ -13120,7 +13307,6 @@
       const visionEmployerValue = school.visionEmployerPaid ? 180 : 0;
       
       const lifeValue = school.lifeAnnualValue;
-      const tuitionValue = school.tuitionRemission ? school.tuitionAnnualValue : 0;
       const hsaValue = school.hsaContribution;
       const wellnessValue = school.wellnessIncentive;
 
@@ -13146,7 +13332,6 @@
         visionEmployerValue +
         lifeValue +
         vestedEmployerValue +
-        tuitionValue +
         hsaValue +
         wellnessValue +
         ssSavings;
@@ -13172,7 +13357,6 @@
         visionEmployeeCost,
         visionEmployerValue,
         lifeValue,
-        tuitionValue,
         hsaValue,
         wellnessValue,
         preTaxDeductions,
@@ -13229,6 +13413,7 @@
       document.getElementById('school1Name').textContent = school.institution;
       document.getElementById('school1Meta').textContent = `${school.city}, ${school.stateAbbr} • ${school.conference || 'Independent'}`;
       updateCalculations();
+      updateMapHighlights();
     }
 
     function selectSchool2(school) {
@@ -13239,6 +13424,7 @@
       document.getElementById('school2Name').textContent = school.institution;
       document.getElementById('school2Meta').textContent = `${school.city}, ${school.stateAbbr} • ${school.conference || 'Independent'}`;
       updateCalculations();
+      updateMapHighlights();
     }
 
     function clearSchool1() {
@@ -13247,6 +13433,7 @@
       document.getElementById('school1Search').value = '';
       document.getElementById('school1Selected').classList.remove('visible');
       document.getElementById('resultsContainer').classList.add('hidden');
+      updateMapHighlights();
     }
 
     function clearSchool2() {
@@ -13255,6 +13442,7 @@
       document.getElementById('school2Search').value = '';
       document.getElementById('school2Selected').classList.remove('visible');
       document.getElementById('resultsContainer').classList.add('hidden');
+      updateMapHighlights();
     }
 
     // ============================================
@@ -13328,12 +13516,6 @@
           <div class="result-row">
             <span class="label">Life Insurance</span>
             <span class="value">${formatCurrency(result.lifeValue)}</span>
-          </div>
-          ` : ''}
-          ${result.tuitionValue > 0 ? `
-          <div class="result-row">
-            <span class="label">Tuition Benefit</span>
-            <span class="value">${formatCurrency(result.tuitionValue)}</span>
           </div>
           ` : ''}
         </div>
@@ -13513,6 +13695,224 @@
         document.getElementById('school1Dropdown').classList.remove('visible');
         document.getElementById('school2Dropdown').classList.remove('visible');
       }
+    });
+
+    // ============================================
+    // MAP INITIALIZATION (Simplified Canvas Version)
+    // ============================================
+    let mapCanvas, mapCtx;
+    
+    // Stub function until map is initialized
+    function updateMapHighlights() {
+      if (!mapCanvas) return;
+      renderSimpleMap();
+    }
+
+    function initializeMap() {
+      const mapContainer = document.getElementById('map');
+      const width = mapContainer.clientWidth;
+      const height = mapContainer.clientHeight;
+
+      // Create canvas
+      mapCanvas = document.createElement('canvas');
+      mapCanvas.width = width;
+      mapCanvas.height = height;
+      mapCanvas.style.width = '100%';
+      mapCanvas.style.height = '100%';
+      mapContainer.appendChild(mapCanvas);
+      mapCtx = mapCanvas.getContext('2d');
+
+      // Render the map
+      renderSimpleMap();
+
+      // Add interactivity
+      mapCanvas.addEventListener('mousemove', handleMapMouseMove);
+      mapCanvas.addEventListener('click', handleMapClick);
+      mapCanvas.addEventListener('mouseout', hideTooltip);
+    }
+
+    function renderSimpleMap() {
+      if (!mapCanvas || !mapCtx) return;
+
+      const width = mapCanvas.width;
+      const height = mapCanvas.height;
+
+      // Clear canvas
+      mapCtx.fillStyle = '#0f172a';
+      mapCtx.fillRect(0, 0, width, height);
+
+      // Calculate bounds for US coordinates
+      const latMin = 25, latMax = 50;
+      const lngMin = -125, lngMax = -65;
+
+      // Project lat/lng to canvas coordinates
+      function project(lat, lng) {
+        const x = ((lng - lngMin) / (lngMax - lngMin)) * width;
+        const y = height - ((lat - latMin) / (latMax - latMin)) * height;
+        return { x, y };
+      }
+
+      // Draw state borders (simplified)
+      mapCtx.strokeStyle = '#334155';
+      mapCtx.lineWidth = 1;
+      
+      // Draw a simple US outline rectangle
+      mapCtx.strokeRect(
+        width * 0.05, 
+        height * 0.1, 
+        width * 0.9, 
+        height * 0.8
+      );
+
+      // Color scale based on COL index
+      const colMin = Math.min(...SCHOOLS.map(s => s.colIndex));
+      const colMax = Math.max(...SCHOOLS.map(s => s.colIndex));
+      
+      function getColor(colIndex) {
+        const normalized = (colIndex - colMin) / (colMax - colMin);
+        const r = Math.floor(239 * normalized + 34 * (1 - normalized));
+        const g = Math.floor(68 * normalized + 197 * (1 - normalized));
+        const b = Math.floor(68 * normalized + 94 * (1 - normalized));
+        return `rgb(${r}, ${g}, ${b})`;
+      }
+
+      // Draw all school markers
+      SCHOOLS.forEach(school => {
+        const pos = project(school.lat, school.lng);
+        const isSchool1 = selectedSchool1 && school.id === selectedSchool1.id;
+        const isSchool2 = selectedSchool2 && school.id === selectedSchool2.id;
+
+        // Determine marker style
+        let radius = 4;
+        let color = getColor(school.colIndex);
+        let strokeColor = '#f1f5f9';
+        let strokeWidth = 0.5;
+
+        if (isSchool1) {
+          radius = 8;
+          color = '#3b82f6';
+          strokeWidth = 2;
+        } else if (isSchool2) {
+          radius = 8;
+          color = '#22c55e';
+          strokeWidth = 2;
+        }
+
+        // Draw marker
+        mapCtx.beginPath();
+        mapCtx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+        mapCtx.fillStyle = color;
+        mapCtx.fill();
+        mapCtx.strokeStyle = strokeColor;
+        mapCtx.lineWidth = strokeWidth;
+        mapCtx.stroke();
+      });
+    }
+
+    let hoveredSchool = null;
+
+    function handleMapMouseMove(event) {
+      const rect = mapCanvas.getBoundingClientRect();
+      const x = (event.clientX - rect.left) * (mapCanvas.width / rect.width);
+      const y = (event.clientY - rect.top) * (mapCanvas.height / rect.height);
+
+      // Find school near cursor
+      const latMin = 25, latMax = 50;
+      const lngMin = -125, lngMax = -65;
+      const width = mapCanvas.width;
+      const height = mapCanvas.height;
+
+      function project(lat, lng) {
+        const px = ((lng - lngMin) / (lngMax - lngMin)) * width;
+        const py = height - ((lat - latMin) / (latMax - latMin)) * height;
+        return { x: px, y: py };
+      }
+
+      let found = null;
+      let minDist = Infinity;
+
+      SCHOOLS.forEach(school => {
+        const pos = project(school.lat, school.lng);
+        const dist = Math.sqrt((pos.x - x) ** 2 + (pos.y - y) ** 2);
+        const isSelected = (selectedSchool1 && school.id === selectedSchool1.id) || 
+                          (selectedSchool2 && school.id === selectedSchool2.id);
+        const threshold = isSelected ? 10 : 6;
+        
+        if (dist < threshold && dist < minDist) {
+          minDist = dist;
+          found = school;
+        }
+      });
+
+      if (found !== hoveredSchool) {
+        hoveredSchool = found;
+        if (found) {
+          showTooltip(event, found);
+          mapCanvas.style.cursor = 'pointer';
+        } else {
+          hideTooltip();
+          mapCanvas.style.cursor = 'default';
+        }
+      }
+    }
+
+    function handleMapClick(event) {
+      if (hoveredSchool) {
+        // If no school selected for school1, select it there
+        if (!selectedSchool1) {
+          selectSchool1(hoveredSchool);
+        } else if (!selectedSchool2) {
+          selectSchool2(hoveredSchool);
+        } else {
+          // If both selected, replace school1
+          selectSchool1(hoveredSchool);
+        }
+      }
+    }
+
+    function showTooltip(event, school) {
+      const tooltip = document.getElementById('mapTooltip');
+      document.getElementById('tooltipTitle').textContent = school.institution;
+      document.getElementById('tooltipLocation').textContent = `${school.city}, ${school.stateAbbr}`;
+      document.getElementById('tooltipConference').textContent = school.conference || 'Independent';
+      document.getElementById('tooltipCOL').textContent = school.colIndex;
+
+      const mapContainer = document.querySelector('.map-container');
+      const rect = mapContainer.getBoundingClientRect();
+      
+      let x = event.clientX - rect.left + 15;
+      let y = event.clientY - rect.top + 15;
+      
+      // Keep tooltip in bounds
+      if (x + 280 > rect.width) x = event.clientX - rect.left - 290;
+      if (y + 150 > rect.height) y = event.clientY - rect.top - 160;
+      
+      tooltip.style.left = x + 'px';
+      tooltip.style.top = y + 'px';
+      tooltip.classList.add('visible');
+    }
+
+    function hideTooltip() {
+      document.getElementById('mapTooltip').classList.remove('visible');
+    }
+
+    // Initialize map when page loads
+    window.addEventListener('load', function() {
+      initializeMap();
+    });
+
+    // Re-render map on window resize
+    let resizeTimeout;
+    window.addEventListener('resize', function() {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(function() {
+        const mapContainer = document.getElementById('map');
+        if (mapCanvas) {
+          mapCanvas.width = mapContainer.clientWidth;
+          mapCanvas.height = mapContainer.clientHeight;
+          renderSimpleMap();
+        }
+      }, 250);
     });
   </script>
 </body>
