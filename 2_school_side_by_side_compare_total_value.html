@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NCAA D1 Side-by-Side Salary Comparison Tool</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/topojson-client@3"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
@@ -554,11 +556,11 @@
         
         <!-- Map Legend -->
         <div class="map-legend">
-          <div class="legend-title">Cost of Living Index</div>
+          <div class="legend-title">Total Compensation Value</div>
           <div class="legend-scale">
-            <span style="font-size: 0.7rem; color: var(--accent-green);">Lower</span>
+            <span style="font-size: 0.7rem; color: var(--accent-red);">Lower</span>
             <div class="legend-gradient"></div>
-            <span style="font-size: 0.7rem; color: var(--accent-red);">Higher</span>
+            <span style="font-size: 0.7rem; color: var(--accent-green);">Higher</span>
           </div>
           
           <div class="map-markers-legend">
@@ -586,8 +588,8 @@
             <span class="value" id="tooltipConference">Conference</span>
           </div>
           <div class="tooltip-row">
-            <span class="label">COL Index:</span>
-            <span class="value" id="tooltipCOL">100</span>
+            <span class="label">Total Comp:</span>
+            <span class="value" id="tooltipCOL">$0</span>
           </div>
         </div>
       </div>
@@ -13698,184 +13700,272 @@
     });
 
     // ============================================
-    // MAP INITIALIZATION (Simplified Canvas Version)
+    // MAP INITIALIZATION (D3.js SVG Version with TopoJSON)
     // ============================================
-    let mapCanvas, mapCtx;
+    let mapSvg = null;
+    let usData = null;
+    let mapLoaded = false;
+    let hoveredSchool = null;
     
-    // Stub function until map is initialized
+    // FIPS code to state abbreviation mapping
+    const FIPS_TO_STATE = {
+      "01": "AL", "02": "AK", "04": "AZ", "05": "AR", "06": "CA", "08": "CO", "09": "CT", "10": "DE",
+      "11": "DC", "12": "FL", "13": "GA", "15": "HI", "16": "ID", "17": "IL", "18": "IN", "19": "IA",
+      "20": "KS", "21": "KY", "22": "LA", "23": "ME", "24": "MD", "25": "MA", "26": "MI", "27": "MN",
+      "28": "MS", "29": "MO", "30": "MT", "31": "NE", "32": "NV", "33": "NH", "34": "NJ", "35": "NM",
+      "36": "NY", "37": "NC", "38": "ND", "39": "OH", "40": "OK", "41": "OR", "42": "PA", "44": "RI",
+      "45": "SC", "46": "SD", "47": "TN", "48": "TX", "49": "UT", "50": "VT", "51": "VA", "53": "WA",
+      "54": "WV", "55": "WI", "56": "WY"
+    };
+    
+    // State labels to skip (too small)
+    const SKIP_LABELS = ['DC', 'DE', 'RI', 'CT', 'NJ', 'NH', 'VT', 'MA', 'MD'];
+    
+    // Calculate total compensation for a school (excluding tuition)
+    function calculateSchoolTotalComp(school) {
+      // Use default values for calculation (100k salary, 5 years service, single, self coverage)
+      const salary = 100000;
+      const yearsOfService = 5;
+      
+      // Retirement
+      const employerRetirementContrib = salary * (school.retirementEmployerPct / 100);
+      const isVested = yearsOfService >= school.vestingYears;
+      const vestedEmployerValue = isVested ? employerRetirementContrib : 0;
+      
+      // SS Exemption savings
+      const ssSavings = school.ssExempt ? Math.min(salary, SS_WAGE_BASE) * SS_RATE : 0;
+      
+      // Health Insurance
+      const healthEmployerValue = school.healthEmployerAnnualContrib;
+      
+      // Other benefits
+      const dentalEmployerValue = school.dentalEmployerPaid ? 600 : 0;
+      const visionEmployerValue = school.visionEmployerPaid ? 180 : 0;
+      const lifeValue = school.lifeAnnualValue;
+      const hsaValue = school.hsaContribution;
+      const wellnessValue = school.wellnessIncentive;
+      
+      // Total Benefits Value (excluding tuition)
+      const totalBenefitsValue = 
+        healthEmployerValue +
+        dentalEmployerValue +
+        visionEmployerValue +
+        lifeValue +
+        vestedEmployerValue +
+        hsaValue +
+        wellnessValue +
+        ssSavings;
+      
+      // Total Compensation = Salary + Benefits (no tuition)
+      return salary + totalBenefitsValue;
+    }
+    
+    // Pre-calculate total compensation for all schools
+    let schoolCompValues = {};
+    let compMin = Infinity;
+    let compMax = -Infinity;
+    
+    function calculateAllSchoolCompValues() {
+      compMin = Infinity;
+      compMax = -Infinity;
+      SCHOOLS.forEach(school => {
+        const totalComp = calculateSchoolTotalComp(school);
+        schoolCompValues[school.id] = totalComp;
+        if (totalComp < compMin) compMin = totalComp;
+        if (totalComp > compMax) compMax = totalComp;
+      });
+    }
+    
+    // Get color based on total compensation value (red to green gradient)
+    function getCompensationColor(totalComp) {
+      if (compMax === compMin) return '#64748b';
+      const normalized = (totalComp - compMin) / (compMax - compMin);
+      
+      // 5-layer gradient from red (low) to green (high)
+      if (normalized < 0.2) return '#e07070';      // mild red
+      if (normalized < 0.4) return '#e8a86b';      // soft orange
+      if (normalized < 0.6) return '#e8d86b';      // soft yellow
+      if (normalized < 0.8) return '#a3c97a';      // light green
+      return '#6fad6f';                             // mild green
+    }
+    
     function updateMapHighlights() {
-      if (!mapCanvas) return;
-      renderSimpleMap();
+      if (!mapLoaded || !mapSvg) return;
+      renderMap();
     }
 
     function initializeMap() {
       const mapContainer = document.getElementById('map');
+      
+      // Calculate compensation values for all schools
+      calculateAllSchoolCompValues();
+      
+      // Load TopoJSON data
+      fetch('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json')
+        .then(res => res.json())
+        .then(data => {
+          usData = data;
+          mapLoaded = true;
+          renderMap();
+        })
+        .catch(err => {
+          console.error('Failed to load US map:', err);
+          mapContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94a3b8;">Failed to load map data</div>';
+        });
+    }
+
+    function renderMap() {
+      if (!usData) return;
+      
+      const mapContainer = document.getElementById('map');
       const width = mapContainer.clientWidth;
       const height = mapContainer.clientHeight;
-
-      // Create canvas
-      mapCanvas = document.createElement('canvas');
-      mapCanvas.width = width;
-      mapCanvas.height = height;
-      mapCanvas.style.width = '100%';
-      mapCanvas.style.height = '100%';
-      mapContainer.appendChild(mapCanvas);
-      mapCtx = mapCanvas.getContext('2d');
-
-      // Render the map
-      renderSimpleMap();
-
-      // Add interactivity
-      mapCanvas.addEventListener('mousemove', handleMapMouseMove);
-      mapCanvas.addEventListener('click', handleMapClick);
-      mapCanvas.addEventListener('mouseout', hideTooltip);
-    }
-
-    function renderSimpleMap() {
-      if (!mapCanvas || !mapCtx) return;
-
-      const width = mapCanvas.width;
-      const height = mapCanvas.height;
-
-      // Clear canvas
-      mapCtx.fillStyle = '#0f172a';
-      mapCtx.fillRect(0, 0, width, height);
-
-      // Calculate bounds for US coordinates
-      const latMin = 25, latMax = 50;
-      const lngMin = -125, lngMax = -65;
-
-      // Project lat/lng to canvas coordinates
-      function project(lat, lng) {
-        const x = ((lng - lngMin) / (lngMax - lngMin)) * width;
-        const y = height - ((lat - latMin) / (latMax - latMin)) * height;
-        return { x, y };
-      }
-
-      // Draw state borders (simplified)
-      mapCtx.strokeStyle = '#334155';
-      mapCtx.lineWidth = 1;
       
-      // Draw a simple US outline rectangle
-      mapCtx.strokeRect(
-        width * 0.05, 
-        height * 0.1, 
-        width * 0.9, 
-        height * 0.8
-      );
-
-      // Color scale based on COL index
-      const colMin = Math.min(...SCHOOLS.map(s => s.colIndex));
-      const colMax = Math.max(...SCHOOLS.map(s => s.colIndex));
+      // Clear existing SVG
+      mapContainer.innerHTML = '';
       
-      function getColor(colIndex) {
-        const normalized = (colIndex - colMin) / (colMax - colMin);
-        const r = Math.floor(239 * normalized + 34 * (1 - normalized));
-        const g = Math.floor(68 * normalized + 197 * (1 - normalized));
-        const b = Math.floor(68 * normalized + 94 * (1 - normalized));
-        return `rgb(${r}, ${g}, ${b})`;
-      }
-
-      // Draw all school markers
+      // Create SVG
+      mapSvg = d3.select('#map')
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height)
+        .style('background', '#0f172a');
+      
+      // Set up projection
+      const projection = d3.geoAlbersUsa()
+        .scale(width * 1.3)
+        .translate([width / 2, height / 2]);
+      
+      const path = d3.geoPath().projection(projection);
+      
+      // Get states from TopoJSON
+      const states = topojson.feature(usData, usData.objects.states);
+      
+      // Draw states with blank/neutral color
+      mapSvg.append('g')
+        .selectAll('path')
+        .data(states.features)
+        .join('path')
+        .attr('d', path)
+        .attr('fill', '#1e293b')  // Blank/neutral dark color
+        .attr('stroke', '#334155')
+        .attr('stroke-width', 0.5);
+      
+      // Draw state labels
+      mapSvg.append('g')
+        .selectAll('text')
+        .data(states.features.filter(d => !SKIP_LABELS.includes(FIPS_TO_STATE[d.id])))
+        .join('text')
+        .attr('transform', d => `translate(${path.centroid(d)})`)
+        .attr('text-anchor', 'middle')
+        .attr('dy', '0.35em')
+        .attr('font-size', '10px')
+        .attr('font-weight', '600')
+        .attr('fill', '#64748b')
+        .attr('pointer-events', 'none')
+        .text(d => FIPS_TO_STATE[d.id]);
+      
+      // Draw school markers
+      const schoolGroup = mapSvg.append('g');
+      
       SCHOOLS.forEach(school => {
-        const pos = project(school.lat, school.lng);
+        const coords = projection([school.lng, school.lat]);
+        if (!coords) return;
+        
         const isSchool1 = selectedSchool1 && school.id === selectedSchool1.id;
         const isSchool2 = selectedSchool2 && school.id === selectedSchool2.id;
-
+        const totalComp = schoolCompValues[school.id];
+        
         // Determine marker style
-        let radius = 4;
-        let color = getColor(school.colIndex);
+        let radius = 5;
+        let fillColor = getCompensationColor(totalComp);
         let strokeColor = '#f1f5f9';
         let strokeWidth = 0.5;
-
-        if (isSchool1) {
-          radius = 8;
-          color = '#3b82f6';
-          strokeWidth = 2;
-        } else if (isSchool2) {
-          radius = 8;
-          color = '#22c55e';
-          strokeWidth = 2;
-        }
-
-        // Draw marker
-        mapCtx.beginPath();
-        mapCtx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
-        mapCtx.fillStyle = color;
-        mapCtx.fill();
-        mapCtx.strokeStyle = strokeColor;
-        mapCtx.lineWidth = strokeWidth;
-        mapCtx.stroke();
-      });
-    }
-
-    let hoveredSchool = null;
-
-    function handleMapMouseMove(event) {
-      const rect = mapCanvas.getBoundingClientRect();
-      const x = (event.clientX - rect.left) * (mapCanvas.width / rect.width);
-      const y = (event.clientY - rect.top) * (mapCanvas.height / rect.height);
-
-      // Find school near cursor
-      const latMin = 25, latMax = 50;
-      const lngMin = -125, lngMax = -65;
-      const width = mapCanvas.width;
-      const height = mapCanvas.height;
-
-      function project(lat, lng) {
-        const px = ((lng - lngMin) / (lngMax - lngMin)) * width;
-        const py = height - ((lat - latMin) / (latMax - latMin)) * height;
-        return { x: px, y: py };
-      }
-
-      let found = null;
-      let minDist = Infinity;
-
-      SCHOOLS.forEach(school => {
-        const pos = project(school.lat, school.lng);
-        const dist = Math.sqrt((pos.x - x) ** 2 + (pos.y - y) ** 2);
-        const isSelected = (selectedSchool1 && school.id === selectedSchool1.id) || 
-                          (selectedSchool2 && school.id === selectedSchool2.id);
-        const threshold = isSelected ? 10 : 6;
         
-        if (dist < threshold && dist < minDist) {
-          minDist = dist;
-          found = school;
+        if (isSchool1) {
+          radius = 10;
+          fillColor = '#3b82f6';  // Blue for School 1
+          strokeColor = '#ffffff';
+          strokeWidth = 3;
+        } else if (isSchool2) {
+          radius = 10;
+          fillColor = '#22c55e';  // Green for School 2
+          strokeColor = '#ffffff';
+          strokeWidth = 3;
         }
+        
+        schoolGroup.append('circle')
+          .attr('cx', coords[0])
+          .attr('cy', coords[1])
+          .attr('r', radius)
+          .attr('fill', fillColor)
+          .attr('stroke', strokeColor)
+          .attr('stroke-width', strokeWidth)
+          .style('cursor', 'pointer')
+          .on('click', function() {
+            handleSchoolClick(school);
+          })
+          .on('mouseover', function(event) {
+            d3.select(this).attr('r', radius + 3);
+            hoveredSchool = school;
+            showTooltip(event, school, totalComp);
+          })
+          .on('mouseout', function() {
+            d3.select(this).attr('r', radius);
+            hoveredSchool = null;
+            hideTooltip();
+          });
       });
-
-      if (found !== hoveredSchool) {
-        hoveredSchool = found;
-        if (found) {
-          showTooltip(event, found);
-          mapCanvas.style.cursor = 'pointer';
-        } else {
-          hideTooltip();
-          mapCanvas.style.cursor = 'default';
+      
+      // Draw connection arc if both schools are selected
+      if (selectedSchool1 && selectedSchool2) {
+        const coords1 = projection([selectedSchool1.lng, selectedSchool1.lat]);
+        const coords2 = projection([selectedSchool2.lng, selectedSchool2.lat]);
+        
+        if (coords1 && coords2) {
+          const midX = (coords1[0] + coords2[0]) / 2;
+          const midY = (coords1[1] + coords2[1]) / 2 - 50;
+          
+          const arcPath = `M ${coords1[0]},${coords1[1]} Q ${midX},${midY} ${coords2[0]},${coords2[1]}`;
+          
+          // Create gradient for arc
+          const defs = mapSvg.append('defs');
+          const gradient = defs.append('linearGradient')
+            .attr('id', 'arcGradient')
+            .attr('x1', '0%').attr('y1', '0%')
+            .attr('x2', '100%').attr('y2', '0%');
+          gradient.append('stop').attr('offset', '0%').attr('stop-color', '#3b82f6');
+          gradient.append('stop').attr('offset', '100%').attr('stop-color', '#22c55e');
+          
+          mapSvg.append('path')
+            .attr('d', arcPath)
+            .attr('fill', 'none')
+            .attr('stroke', 'url(#arcGradient)')
+            .attr('stroke-width', 3)
+            .attr('stroke-dasharray', '8,4')
+            .attr('opacity', 0.8);
         }
       }
     }
-
-    function handleMapClick(event) {
-      if (hoveredSchool) {
-        // If no school selected for school1, select it there
-        if (!selectedSchool1) {
-          selectSchool1(hoveredSchool);
-        } else if (!selectedSchool2) {
-          selectSchool2(hoveredSchool);
-        } else {
-          // If both selected, replace school1
-          selectSchool1(hoveredSchool);
-        }
+    
+    function handleSchoolClick(school) {
+      // If no school selected for school1, select it there
+      if (!selectedSchool1) {
+        selectSchool1(school);
+      } else if (!selectedSchool2) {
+        selectSchool2(school);
+      } else {
+        // If both selected, replace school1
+        selectSchool1(school);
       }
     }
 
-    function showTooltip(event, school) {
+    function showTooltip(event, school, totalComp) {
       const tooltip = document.getElementById('mapTooltip');
       document.getElementById('tooltipTitle').textContent = school.institution;
       document.getElementById('tooltipLocation').textContent = `${school.city}, ${school.stateAbbr}`;
       document.getElementById('tooltipConference').textContent = school.conference || 'Independent';
-      document.getElementById('tooltipCOL').textContent = school.colIndex;
+      document.getElementById('tooltipCOL').textContent = formatCurrency(totalComp);
 
       const mapContainer = document.querySelector('.map-container');
       const rect = mapContainer.getBoundingClientRect();
@@ -13906,11 +13996,8 @@
     window.addEventListener('resize', function() {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(function() {
-        const mapContainer = document.getElementById('map');
-        if (mapCanvas) {
-          mapCanvas.width = mapContainer.clientWidth;
-          mapCanvas.height = mapContainer.clientHeight;
-          renderSimpleMap();
+        if (mapLoaded) {
+          renderMap();
         }
       }, 250);
     });
