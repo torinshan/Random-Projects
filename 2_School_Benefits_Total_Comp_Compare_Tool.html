@@ -808,6 +808,11 @@
     
     const SKIP_LABELS = ['DC', 'DE', 'RI', 'CT', 'NJ', 'NH', 'VT', 'MA', 'MD'];
     
+    // Base take-home salary used for COL-adjusted calculations (approx 70% of $100k)
+    const BASE_TAKE_HOME = 70000;
+    // Default COL index (national average = 100)
+    const DEFAULT_COL_INDEX = 100;
+    
     // ============================================
     // COL-ADJUSTED VALUE COLOR FUNCTION
     // ============================================
@@ -1606,12 +1611,10 @@
         // Load US TopoJSON
         const us = await d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json');
         
-        // Calculate COL-adjusted values for each school (using base salary of $100,000)
-        const baseSalary = 100000;
+        // Calculate COL-adjusted values for each school using BASE_TAKE_HOME
         const schoolsWithCOL = SCHOOLS.map(school => {
-          // Simplified take-home calculation (approx 70% of gross)
-          const takeHome = baseSalary * 0.70;
-          const colAdjusted = (takeHome / (school.colIndex || 100)) * 100;
+          // Calculate COL-adjusted value: (take-home / COL index) * 100 to normalize
+          const colAdjusted = (BASE_TAKE_HOME / (school.colIndex || DEFAULT_COL_INDEX)) * DEFAULT_COL_INDEX;
           return { ...school, colAdjusted };
         });
         
@@ -1707,14 +1710,14 @@
     function updateMapMarkers() {
       if (!mapSvg) return;
       
-      // Use stored min/max COL-adjusted values
-      const minValue = window.minValue || 50000;
-      const maxValue = window.maxValue || 90000;
+      // Use stored min/max COL-adjusted values from initMap
+      const minValue = window.minValue;
+      const maxValue = window.maxValue;
       
       mapSvg.selectAll('.school-marker').each(function() {
         const marker = d3.select(this);
         const schoolId = parseInt(marker.attr('data-id'));
-        const colAdjusted = parseFloat(marker.attr('data-col-adjusted')) || 70000;
+        const colAdjusted = parseFloat(marker.attr('data-col-adjusted'));
         const school = SCHOOLS.find(s => s.id === schoolId);
         
         if (!school) return;
@@ -1734,8 +1737,8 @@
         else if (destinationSchool && school.id === destinationSchool.id) {
           // Green if better value than origin, red if worse
           if (originSchool) {
-            const originCOL = (70000 / (originSchool.colIndex || 100)) * 100;
-            const destCOL = (70000 / (destinationSchool.colIndex || 100)) * 100;
+            const originCOL = (BASE_TAKE_HOME / (originSchool.colIndex || DEFAULT_COL_INDEX)) * DEFAULT_COL_INDEX;
+            const destCOL = (BASE_TAKE_HOME / (destinationSchool.colIndex || DEFAULT_COL_INDEX)) * DEFAULT_COL_INDEX;
             fill = destCOL >= originCOL ? '#22c55e' : '#ef4444';
           } else {
             fill = '#22c55e';
@@ -1768,7 +1771,7 @@
       document.getElementById('tooltipTitle').textContent = stateName + ` (${stat.count} schools)`;
       document.getElementById('tooltipBenefits').textContent = fmt(stat.avg) + ' avg COL-adjusted';
       document.getElementById('tooltipRetirement').textContent = stat.schools[0]?.institution || 'N/A';
-      document.getElementById('tooltipCOL').textContent = stat.schools[0] ? (stat.schools[0].colIndex || 100).toFixed(1) : 'N/A';
+      document.getElementById('tooltipCOL').textContent = stat.schools[0] ? (stat.schools[0].colIndex || DEFAULT_COL_INDEX).toFixed(1) : 'N/A';
       
       positionTooltip(event);
       tooltip.classList.add('visible');
@@ -1778,9 +1781,9 @@
       const tooltip = document.getElementById('mapTooltip');
       
       document.getElementById('tooltipTitle').textContent = school.institution;
-      document.getElementById('tooltipBenefits').textContent = fmt(school.colAdjusted || ((70000 / (school.colIndex || 100)) * 100));
+      document.getElementById('tooltipBenefits').textContent = fmt(school.colAdjusted || ((BASE_TAKE_HOME / (school.colIndex || DEFAULT_COL_INDEX)) * DEFAULT_COL_INDEX));
       document.getElementById('tooltipRetirement').textContent = (school.retirementEmployerPct || 0).toFixed(1) + '%';
-      document.getElementById('tooltipCOL').textContent = (school.colIndex || 100).toFixed(1);
+      document.getElementById('tooltipCOL').textContent = (school.colIndex || DEFAULT_COL_INDEX).toFixed(1);
       
       positionTooltip(event);
       tooltip.classList.add('visible');
