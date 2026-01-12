@@ -550,7 +550,70 @@
     .hidden {
       display: none !important;
     }
+    
+    /* Map Legend Styles */
+    .map-legend {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(15, 23, 42, 0.95);
+      border-radius: 10px;
+      padding: 12px;
+      border: 1px solid var(--border-color);
+      backdrop-filter: blur(8px);
+    }
+    
+    .legend-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+    
+    .legend-scale {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+    }
+    
+    .legend-gradient {
+      width: 120px;
+      height: 10px;
+      border-radius: 5px;
+      background: linear-gradient(to right, #e07070 0%, #e07070 20%, #e8a86b 20%, #e8a86b 40%, #e8d86b 40%, #e8d86b 60%, #a3c97a 60%, #a3c97a 80%, #6fad6f 80%, #6fad6f 100%);
+    }
+    
+    .map-markers-legend {
+      border-top: 1px solid var(--border-color);
+      padding-top: 8px;
+      margin-top: 8px;
+    }
+    
+    .marker-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+    
+    .marker-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    
+    .marker-dot.origin {
+      background: #000000;
+      border: 2px solid #f1f5f9;
+    }
   </style>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/topojson-client@3"></script>
 </head>
 <body>
   <div class="container">
@@ -717,6 +780,47 @@
       { id: 9, institution: "Louisiana State University", city: "Baton Rouge", state: "Louisiana", stateAbbr: "LA", conference: "SEC", lat: 30.4152, lng: -91.1771, colIndex: 94.3, retirementEmployerPct: 24.0, retirementEmployeePct: 8.0, ssExempt: true, healthEmployerAnnual: 9600, benefitsValue100k: 48200 },
       { id: 10, institution: "Harvard University", city: "Cambridge", state: "Massachusetts", stateAbbr: "MA", conference: "Ivy League", lat: 42.3770, lng: -71.1167, colIndex: 152.8, retirementEmployerPct: 10.0, retirementEmployeePct: 5.0, ssExempt: false, healthEmployerAnnual: 21000, benefitsValue100k: 52300 },
     ];
+    
+    // ============================================
+    // FIPS TO STATE MAPPING (for map coloring)
+    // ============================================
+    const FIPS_TO_STATE = {
+      "01": "AL", "02": "AK", "04": "AZ", "05": "AR", "06": "CA", "08": "CO", "09": "CT", "10": "DE",
+      "11": "DC", "12": "FL", "13": "GA", "15": "HI", "16": "ID", "17": "IL", "18": "IN", "19": "IA",
+      "20": "KS", "21": "KY", "22": "LA", "23": "ME", "24": "MD", "25": "MA", "26": "MI", "27": "MN",
+      "28": "MS", "29": "MO", "30": "MT", "31": "NE", "32": "NV", "33": "NH", "34": "NJ", "35": "NM",
+      "36": "NY", "37": "NC", "38": "ND", "39": "OH", "40": "OK", "41": "OR", "42": "PA", "44": "RI",
+      "45": "SC", "46": "SD", "47": "TN", "48": "TX", "49": "UT", "50": "VT", "51": "VA", "53": "WA",
+      "54": "WV", "55": "WI", "56": "WY"
+    };
+    
+    const STATE_NAMES = {
+      AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado",
+      CT: "Connecticut", DE: "Delaware", DC: "District of Columbia", FL: "Florida", GA: "Georgia",
+      HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", KY: "Kentucky",
+      LA: "Louisiana", ME: "Maine", MD: "Maryland", MA: "Massachusetts", MI: "Michigan", MN: "Minnesota",
+      MS: "Mississippi", MO: "Missouri", MT: "Montana", NE: "Nebraska", NV: "Nevada", NH: "New Hampshire",
+      NJ: "New Jersey", NM: "New Mexico", NY: "New York", NC: "North Carolina", ND: "North Dakota",
+      OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island", SC: "South Carolina",
+      SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia",
+      WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming"
+    };
+    
+    const SKIP_LABELS = ['DC', 'DE', 'RI', 'CT', 'NJ', 'NH', 'VT', 'MA', 'MD'];
+    
+    // ============================================
+    // COL-ADJUSTED VALUE COLOR FUNCTION
+    // ============================================
+    function getValueColor(value, min, max) {
+      if (!value) return '#334155';
+      const normalized = Math.max(0, Math.min(1, (value - min) / (max - min)));
+      // 5-layer gradient from mild red to mild green
+      if (normalized < 0.2) return '#e07070';      // mild red
+      if (normalized < 0.4) return '#e8a86b';      // soft orange
+      if (normalized < 0.6) return '#e8d86b';      // soft yellow
+      if (normalized < 0.8) return '#a3c97a';      // light green
+      return '#6fad6f';                             // mild green
+    }
     
     // ============================================
     // STATE MANAGEMENT
@@ -991,7 +1095,7 @@
           
           <!-- Map Legend -->
           <div class="map-legend">
-            <div class="legend-title">Total Benefits Package Value</div>
+            <div class="legend-title">COL-Adjusted Value</div>
             <div class="legend-scale">
               <span style="font-size: 0.7rem; color: var(--accent-red);">Lower</span>
               <div class="legend-gradient"></div>
@@ -1006,7 +1110,11 @@
               </div>
               <div class="marker-item">
                 <div class="marker-dot" style="background: #22c55e; border: 2px solid #f1f5f9; width: 12px; height: 12px;"></div>
-                <span>Destination</span>
+                <span>Better Value</span>
+              </div>
+              <div class="marker-item">
+                <div class="marker-dot" style="background: #ef4444; border: 2px solid #f1f5f9; width: 12px; height: 12px;"></div>
+                <span>Worse Value</span>
               </div>
             </div>
           </div>
@@ -1015,12 +1123,12 @@
           <div class="map-tooltip" id="mapTooltip">
             <div class="tooltip-title" id="tooltipTitle">School Name</div>
             <div class="tooltip-row">
-              <span class="label">Benefits Package:</span>
+              <span class="label">COL-Adjusted Value:</span>
               <span class="value" id="tooltipBenefits">$0</span>
             </div>
             <div class="tooltip-row">
-              <span class="label">Employer Retirement:</span>
-              <span class="value" id="tooltipRetirement">0%</span>
+              <span class="label">Top School:</span>
+              <span class="value" id="tooltipRetirement">N/A</span>
             </div>
             <div class="tooltip-row">
               <span class="label">COL Index:</span>
@@ -1498,7 +1606,36 @@
         // Load US TopoJSON
         const us = await d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json');
         
-        // Draw states
+        // Calculate COL-adjusted values for each school (using base salary of $100,000)
+        const baseSalary = 100000;
+        const schoolsWithCOL = SCHOOLS.map(school => {
+          // Simplified take-home calculation (approx 70% of gross)
+          const takeHome = baseSalary * 0.70;
+          const colAdjusted = (takeHome / (school.colIndex || 100)) * 100;
+          return { ...school, colAdjusted };
+        });
+        
+        // Calculate state statistics
+        const stateStats = {};
+        schoolsWithCOL.forEach(school => {
+          if (!stateStats[school.stateAbbr]) {
+            stateStats[school.stateAbbr] = { schools: [], sum: 0, count: 0 };
+          }
+          stateStats[school.stateAbbr].schools.push(school);
+          stateStats[school.stateAbbr].sum += school.colAdjusted;
+          stateStats[school.stateAbbr].count++;
+        });
+        Object.keys(stateStats).forEach(st => {
+          stateStats[st].avg = stateStats[st].sum / stateStats[st].count;
+          stateStats[st].schools.sort((a, b) => b.colAdjusted - a.colAdjusted);
+        });
+        
+        // Calculate min/max COL-adjusted values
+        const colAdjustedValues = schoolsWithCOL.map(s => s.colAdjusted).filter(v => v > 0);
+        const minValue = Math.min(...colAdjustedValues);
+        const maxValue = Math.max(...colAdjustedValues);
+        
+        // Draw states with COL-adjusted color scale
         const states = topojson.feature(us, us.objects.states);
         
         mapSvg.append('g')
@@ -1509,8 +1646,8 @@
           .append('path')
           .attr('class', 'state')
           .attr('d', mapPath)
-          .attr('fill', d => getStateColor(d))
-          .on('mouseover', handleStateHover)
+          .attr('fill', d => getStateColor(d, stateStats, minValue, maxValue))
+          .on('mouseover', (event, d) => handleStateHover(event, d, stateStats))
           .on('mouseout', hideTooltip);
         
         // Draw state borders
@@ -1521,28 +1658,18 @@
           .attr('stroke-width', 1)
           .attr('d', mapPath);
         
-        // Calculate min/max benefits package values for color scale
-        const benefitsValues = SCHOOLS.map(s => s.benefitsValue100k || 0).filter(v => v > 0);
-        
-        const minBenefits = Math.min(...benefitsValues);
-        const maxBenefits = Math.max(...benefitsValues);
-        
-        // Create color scale for markers based on benefits package value
-        const markerColorScale = d3.scaleLinear()
-          .domain([minBenefits, (minBenefits + maxBenefits) / 2, maxBenefits])
-          .range(['#ef4444', '#eab308', '#22c55e']);
-        
-        // Add school markers
+        // Add school markers with COL-adjusted coloring
         const markersGroup = mapSvg.append('g').attr('class', 'markers');
         
-        SCHOOLS.forEach(school => {
+        schoolsWithCOL.forEach(school => {
           const coords = mapProjection([school.lng, school.lat]);
           if (coords) {
-            const markerColor = markerColorScale(school.benefitsValue100k || 0);
+            const markerColor = getValueColor(school.colAdjusted, minValue, maxValue);
             
             markersGroup.append('circle')
               .attr('class', 'school-marker')
               .attr('data-id', school.id)
+              .attr('data-col-adjusted', school.colAdjusted)
               .attr('cx', coords[0])
               .attr('cy', coords[1])
               .attr('r', 5)
@@ -1555,67 +1682,64 @@
           }
         });
         
+        // Store state stats for later use
+        window.stateStats = stateStats;
+        window.minValue = minValue;
+        window.maxValue = maxValue;
+        
       } catch (error) {
         console.error('Failed to load map:', error);
         container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);">Map loading failed. Check console for details.</div>';
       }
     }
     
-    function getStateColor(feature) {
-      // Get schools in this state
-      const stateName = feature.properties.name;
-      const stateSchools = SCHOOLS.filter(s => s.state === stateName);
+    function getStateColor(feature, stateStats, minValue, maxValue) {
+      // Get state abbreviation from FIPS code
+      const abbr = FIPS_TO_STATE[feature.id];
+      const stat = stateStats[abbr];
       
-      if (stateSchools.length === 0) return '#334155';
+      if (!stat) return '#1e293b';
       
-      // Calculate average benefits package value
-      const avgValue = stateSchools.reduce((sum, s) => {
-        return sum + (s.benefitsValue100k || 0);
-      }, 0) / stateSchools.length;
-      
-      // Color scale: red (low) -> yellow (mid) -> green (high)
-      const minValue = 25000;
-      const maxValue = 50000;
-      const normalized = Math.max(0, Math.min(1, (avgValue - minValue) / (maxValue - minValue)));
-      
-      return d3.interpolateRgb('#ef4444', '#22c55e')(normalized);
+      // Use the 5-layer gradient color function based on COL-adjusted average
+      return getValueColor(stat.avg, minValue, maxValue);
     }
     
     function updateMapMarkers() {
       if (!mapSvg) return;
       
-      // Calculate min/max benefits package values for color scale
-      const benefitsValues = SCHOOLS.map(s => s.benefitsValue100k || 0).filter(v => v > 0);
-      
-      const minBenefits = Math.min(...benefitsValues);
-      const maxBenefits = Math.max(...benefitsValues);
-      
-      // Create color scale for markers (red = low benefits, yellow = mid, green = high benefits)
-      const markerColorScale = d3.scaleLinear()
-        .domain([minBenefits, (minBenefits + maxBenefits) / 2, maxBenefits])
-        .range(['#ef4444', '#eab308', '#22c55e']);
+      // Use stored min/max COL-adjusted values
+      const minValue = window.minValue || 50000;
+      const maxValue = window.maxValue || 90000;
       
       mapSvg.selectAll('.school-marker').each(function() {
         const marker = d3.select(this);
         const schoolId = parseInt(marker.attr('data-id'));
+        const colAdjusted = parseFloat(marker.attr('data-col-adjusted')) || 70000;
         const school = SCHOOLS.find(s => s.id === schoolId);
         
         if (!school) return;
         
-        // Default: color by benefits package value
-        let fill = markerColorScale(school.benefitsValue100k || 0);
+        // Default: color by COL-adjusted value
+        let fill = getValueColor(colAdjusted, minValue, maxValue);
         let stroke = '#0f172a';
         let r = 5;
         
         // Origin school - black marker with white ring
         if (originSchool && school.id === originSchool.id) {
-          fill = '#1f2937';
+          fill = '#000000';
           stroke = '#f1f5f9';
           r = 8;
         } 
-        // Destination school - larger with bright border
+        // Destination school - show if better or worse than origin
         else if (destinationSchool && school.id === destinationSchool.id) {
-          // Keep the benefits-based color but make it stand out
+          // Green if better value than origin, red if worse
+          if (originSchool) {
+            const originCOL = (70000 / (originSchool.colIndex || 100)) * 100;
+            const destCOL = (70000 / (destinationSchool.colIndex || 100)) * 100;
+            fill = destCOL >= originCOL ? '#22c55e' : '#ef4444';
+          } else {
+            fill = '#22c55e';
+          }
           stroke = '#f1f5f9';
           r = 8;
         }
@@ -1629,35 +1753,22 @@
       });
     }
     
-    function handleStateHover(event, feature) {
-      const stateName = feature.properties.name;
-      const stateSchools = SCHOOLS.filter(s => s.state === stateName);
+    function handleStateHover(event, feature, stateStats) {
+      const abbr = FIPS_TO_STATE[feature.id];
+      const stat = stateStats ? stateStats[abbr] : (window.stateStats ? window.stateStats[abbr] : null);
       
-      if (stateSchools.length === 0) {
+      if (!stat) {
         hideTooltip();
         return;
       }
       
       const tooltip = document.getElementById('mapTooltip');
+      const stateName = STATE_NAMES[abbr] || abbr;
       
-      // Calculate average values
-      let totalBenefits = 0;
-      let totalRetirement = 0;
-      let totalCOL = 0;
-      stateSchools.forEach(s => {
-        totalBenefits += s.benefitsValue100k || 0;
-        totalRetirement += s.retirementEmployerPct || 0;
-        totalCOL += s.colIndex || 100;
-      });
-      
-      const avgBenefits = totalBenefits / stateSchools.length;
-      const avgRetirement = totalRetirement / stateSchools.length;
-      const avgCOL = totalCOL / stateSchools.length;
-      
-      document.getElementById('tooltipTitle').textContent = stateName + ` (${stateSchools.length} schools)`;
-      document.getElementById('tooltipBenefits').textContent = fmt(avgBenefits) + ' avg';
-      document.getElementById('tooltipRetirement').textContent = avgRetirement.toFixed(1) + '% avg';
-      document.getElementById('tooltipCOL').textContent = avgCOL.toFixed(1) + ' avg';
+      document.getElementById('tooltipTitle').textContent = stateName + ` (${stat.count} schools)`;
+      document.getElementById('tooltipBenefits').textContent = fmt(stat.avg) + ' avg COL-adjusted';
+      document.getElementById('tooltipRetirement').textContent = stat.schools[0]?.institution || 'N/A';
+      document.getElementById('tooltipCOL').textContent = stat.schools[0] ? (stat.schools[0].colIndex || 100).toFixed(1) : 'N/A';
       
       positionTooltip(event);
       tooltip.classList.add('visible');
@@ -1667,7 +1778,7 @@
       const tooltip = document.getElementById('mapTooltip');
       
       document.getElementById('tooltipTitle').textContent = school.institution;
-      document.getElementById('tooltipBenefits').textContent = fmt(school.benefitsValue100k || 0);
+      document.getElementById('tooltipBenefits').textContent = fmt(school.colAdjusted || ((70000 / (school.colIndex || 100)) * 100));
       document.getElementById('tooltipRetirement').textContent = (school.retirementEmployerPct || 0).toFixed(1) + '%';
       document.getElementById('tooltipCOL').textContent = (school.colIndex || 100).toFixed(1);
       
